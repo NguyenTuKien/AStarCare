@@ -51,18 +51,11 @@ function App() {
       .then(data => {
         setUser(data.user);
         setAuthLoading(false);
+        // Fetch sessions after confirming login
+        setIsConnecting(true)
+        setApiError(null)
+        return fetch('/api/sessions')
       })
-      .catch(() => {
-        setUser(null);
-        setAuthLoading(false);
-      })
-  }, [])
-
-  useEffect(() => {
-    if (!user) return;
-    setIsConnecting(true)
-    setApiError(null)
-    apiFetch('/api/sessions')
       .then(res => {
         if (!res.ok) throw new Error(`Server lỗi ${res.status} - vui lòng thử lại sau`)
         return res.json()
@@ -77,9 +70,13 @@ function App() {
         }
       })
       .catch(err => {
+        setUser(null);
+        setAuthLoading(false);
         setIsConnecting(false)
-        setApiError(err.message || 'Không thể kết nối đến máy chủ')
-        console.error("Error fetching sessions:", err)
+        const msg = err.message || ''
+        if (!msg.includes('Not logged in')) {
+          setApiError(msg || 'Không thể kết nối đến máy chủ')
+        }
       })
   }, [])
 
@@ -221,6 +218,17 @@ function App() {
   if (!user) {
     return <AuthScreen onAuthSuccess={(data) => {
       setUser(data.user);
+      // Fetch sessions after login
+      setIsConnecting(true)
+      fetch('/api/sessions')
+        .then(res => res.ok ? res.json() : Promise.reject())
+        .then(data => {
+          setIsConnecting(false)
+          setSessions(data)
+          if (data.length > 0) setActiveSessionId(data[0].id)
+          else handleNewConsultation()
+        })
+        .catch(() => setIsConnecting(false))
     }} />
   }
 
