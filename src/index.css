@@ -1040,6 +1040,23 @@ input:checked + .slider:before {
   box-shadow: 0 0 0 2px rgba(15, 52, 140, 0.2);
 }
 
+.auth-icon-right {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.auth-icon-right:hover {
+  color: var(--primary-color);
+}
+
 .auth-submit-btn {
   background-color: var(--primary-color);
   color: white;

@@ -20,16 +20,13 @@ function App() {
   const [activeSession, setActiveSession] = useState(null)
 
   // Auth state
-  const [token, setToken] = useState(localStorage.getItem('token') || null)
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
-  })
+  const [user, setUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    setToken(null)
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch(err) {}
     setUser(null)
     setSessions([])
     setActiveSessionId(null)
@@ -37,9 +34,7 @@ function App() {
   }
 
   const apiFetch = async (url, options = {}) => {
-    const headers = { ...options.headers }
-    if (token) headers['Authorization'] = `Bearer ${token}`
-    const res = await fetch(url, { ...options, headers })
+    const res = await fetch(url, options)
     if (res.status === 401) {
       handleLogout()
       throw new Error("Phiên đăng nhập hết hạn")
@@ -48,7 +43,23 @@ function App() {
   }
 
   useEffect(() => {
-    if (!token) return;
+    fetch('/api/auth/me')
+      .then(res => {
+        if (!res.ok) throw new Error("Not logged in");
+        return res.json();
+      })
+      .then(data => {
+        setUser(data.user);
+        setAuthLoading(false);
+      })
+      .catch(() => {
+        setUser(null);
+        setAuthLoading(false);
+      })
+  }, [])
+
+  useEffect(() => {
+    if (!user) return;
     setIsConnecting(true)
     setApiError(null)
     apiFetch('/api/sessions')
@@ -73,7 +84,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (activeSessionId && token) {
+    if (activeSessionId && user) {
       apiFetch(`/api/sessions/${activeSessionId}`)
         .then(res => res.json())
         .then(data => setActiveSession(data))
@@ -199,12 +210,17 @@ function App() {
     }
   }
 
-  if (!token) {
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f5f7fa', color: 'var(--primary-color)' }}>
+        Đang tải thông tin người dùng...
+      </div>
+    );
+  }
+
+  if (!user) {
     return <AuthScreen onAuthSuccess={(data) => {
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user', JSON.stringify({ id: data.user_id, username: data.username }));
-      setToken(data.access_token);
-      setUser({ id: data.user_id, username: data.username });
+      setUser(data.user);
     }} />
   }
 
@@ -281,7 +297,6 @@ function App() {
         activeSession={activeSession}
         onSendMessage={handleSendMessage}
         user={user}
-        token={token}
         onLogout={handleLogout}
       />
       

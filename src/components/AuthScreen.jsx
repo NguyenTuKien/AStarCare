@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Lock, User, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 
 function AuthScreen({ onAuthSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -8,6 +8,8 @@ function AuthScreen({ onAuthSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -94,22 +96,28 @@ function AuthScreen({ onAuthSuccess }) {
           <div className="auth-input-group">
             <Lock size={20} className="auth-icon" />
             <input 
-              type="password" 
+              type={showPassword ? "text" : "password"} 
               placeholder="Mật khẩu" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <button type="button" className="auth-icon-right" onClick={() => setShowPassword(!showPassword)}>
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
           </div>
 
           {!isLogin && (
             <div className="auth-input-group">
               <Lock size={20} className="auth-icon" />
               <input 
-                type="password" 
+                type={showConfirmPassword ? "text" : "password"} 
                 placeholder="Xác nhận mật khẩu" 
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
+              <button type="button" className="auth-icon-right" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
           )}
 

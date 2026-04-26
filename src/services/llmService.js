@@ -10,17 +10,13 @@ export const generateBotResponse = async (userText, imageUrls = []) => {
 /**
  * Transcribes an audio Blob.
  */
-export const transcribeAudio = async (audioBlob, token) => {
+export const transcribeAudio = async (audioBlob) => {
     try {
         const formData = new FormData();
         formData.append("audio", audioBlob, "record.webm");
 
-        const headers = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
         const response = await fetch("/api/transcribe", {
             method: "POST",
-            headers,
             body: formData,
             // KHÔNG set header Content-Type để trình duyệt tự động tính toán boundary
         });

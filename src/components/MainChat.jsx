@@ -3,7 +3,7 @@ import { Plus, Mic, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Co
 import { transcribeAudio } from '../services/llmService'
 import CameraModal from './CameraModal'
 
-function MainChat({ onOpenSettings, activeSession, onSendMessage, user, token, onLogout }) {
+function MainChat({ onOpenSettings, activeSession, onSendMessage, user, onLogout }) {
   const [showPlusMenu, setShowPlusMenu] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
@@ -73,7 +73,7 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage, user, token, o
         const blob = new Blob(audioChunksRef.current, { type: geminiMimeType })
         setIsTranscribing(true)
         try {
-          const text = await transcribeAudio(blob, token)
+          const text = await transcribeAudio(blob)
           if (text) {
             setInputValue(prev => (prev ? prev + ' ' : '') + text)
             showToast('Đã điền transcript vào ô chat. Bạn có thể sửa lại rồi bấm Gửi.')
