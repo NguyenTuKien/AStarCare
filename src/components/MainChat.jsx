@@ -1,15 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Mic, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Copy, User } from 'lucide-react'
+import { Plus, Mic, MicOff, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Copy, Loader2 } from 'lucide-react'
+import { transcribeAudio } from '../services/llmService'
 
 function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
   const [showPlusMenu, setShowPlusMenu] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [isListening, setIsListening] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const [isSending, setIsSending] = useState(false)
-  const [recognition, setRecognition] = useState(null)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
   const [selectedImages, setSelectedImages] = useState([])
-  
+
   const menuRef = useRef(null)
   const profileMenuRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -20,55 +23,52 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeSession?.messages])
 
-  // Setup SpeechRecognition
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const rec = new SpeechRecognition();
-      rec.continuous = false;
-      rec.interimResults = true;
-      rec.lang = 'vi-VN';
+  // MediaRecorder-based mic (works on Brave — does NOT use Web Speech API)
+  const toggleListening = async () => {
+    if (isTranscribing) return
 
-      rec.onresult = (event) => {
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          }
-        }
-        if (finalTranscript) {
-          setInputValue(prev => prev + finalTranscript + ' ');
-        }
-      };
-
-      rec.onend = () => setIsListening(false);
-      rec.onerror = (event) => {
-        console.error('Speech recognition error', event.error);
-        setIsListening(false);
-      };
-
-      setRecognition(rec);
-    }
-  }, []);
-
-  const toggleListening = () => {
-    if (!recognition) {
-      alert("Trình duyệt của bạn không hỗ trợ nhận diện giọng nói (Vui lòng sử dụng Chrome).");
-      return;
-    }
     if (isListening) {
-      recognition.stop();
-      setIsListening(false);
-    } else {
-      try {
-        recognition.start();
-        setIsListening(true);
-      } catch (e) {
-        console.error('Mic start error:', e);
-        setIsListening(false);
-      }
+      // Stop recording → onstop will handle transcription
+      mediaRecorderRef.current?.stop()
+      setIsListening(false)
+      return
     }
-  };
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      audioChunksRef.current = []
+
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg', 'audio/mp4']
+        .find(t => MediaRecorder.isTypeSupported(t)) || ''
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {})
+      mediaRecorderRef.current = recorder
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' })
+        setIsTranscribing(true)
+        try {
+          const text = await transcribeAudio(blob)
+          setInputValue(prev => (prev ? prev + ' ' : '') + text)
+        } catch (err) {
+          console.error('Transcription failed:', err)
+        } finally {
+          setIsTranscribing(false)
+        }
+      }
+
+      recorder.start()
+      setIsListening(true)
+    } catch (err) {
+      console.error('Mic access error:', err)
+      alert('Không thể truy cập microphone. Vui lòng kiểm tra quyền trình duyệt.')
+    }
+  }
 
   // Close menus on outside click
   useEffect(() => {
@@ -234,10 +234,20 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
                 }
               }}
             />
-            <button className="icon-btn" onClick={toggleListening} title={isListening ? 'Dừng mic' : 'Bắt đầu nói'}
-              style={isListening ? { backgroundColor: '#fee2e2', color: 'red', borderRadius: '50%' } : {}}
+            <button className="icon-btn" onClick={toggleListening}
+              disabled={isTranscribing}
+              title={isListening ? 'Dừng ghi âm' : isTranscribing ? 'Đang xử lý...' : 'Ghi âm giọng nói'}
+              style={isListening
+                ? { backgroundColor: '#fee2e2', color: '#ef4444', borderRadius: '50%' }
+                : isTranscribing
+                ? { opacity: 0.6, cursor: 'not-allowed' }
+                : {}}
             >
-              <Mic size={20} className={isListening ? 'mic-pulse' : ''} />
+              {isTranscribing
+                ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                : isListening
+                ? <MicOff size={20} />
+                : <Mic size={20} />}
             </button>
             <button 
               className="icon-btn" 
