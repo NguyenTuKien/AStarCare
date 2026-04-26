@@ -442,13 +442,41 @@ input:checked + .slider:before {
 
 .action-btn {
   color: var(--text-secondary);
-  padding: 4px;
-  border-radius: 4px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .action-btn:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
+}
+
+/* Light mode – fill màu khi active */
+.action-btn.liked {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.action-btn.disliked {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+/* Dark mode – chỉ viền + màu chữ, không fill */
+[data-theme="dark"] .action-btn.liked {
+  background-color: transparent;
+  color: #60a5fa;
+  border-color: #3b82f6;
+}
+
+[data-theme="dark"] .action-btn.disliked {
+  background-color: transparent;
+  color: #f87171;
+  border-color: #ef4444;
 }
 
 /* Input Area */

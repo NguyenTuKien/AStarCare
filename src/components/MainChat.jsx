@@ -264,27 +264,17 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage, user, onLogout
                   {msg.sender === 'bot' && !msg._loading && (
                     <div className="message-actions">
                       <button 
-                        className="action-btn"
+                        className={`action-btn${(feedbackState[msg.id] !== undefined ? feedbackState[msg.id] === 'liked' : msg.isHelpful) ? ' liked' : ''}`}
                         onClick={() => handleFeedback(msg, 'liked')}
                         disabled={!!feedbackLoading[msg.id]}
-                        style={(
-                          feedbackState[msg.id] !== undefined
-                            ? feedbackState[msg.id] === 'liked'
-                            : msg.isHelpful
-                        ) ? { color: 'var(--primary-color)' } : {}}
                         title="Hữu ích"
                       >
                         <ThumbsUp size={16} />
                       </button>
                       <button 
-                        className="action-btn"
+                        className={`action-btn${(feedbackState[msg.id] !== undefined ? feedbackState[msg.id] === 'disliked' : msg.isUseless) ? ' disliked' : ''}`}
                         onClick={() => handleFeedback(msg, 'disliked')}
                         disabled={!!feedbackLoading[msg.id]}
-                        style={(
-                          feedbackState[msg.id] !== undefined
-                            ? feedbackState[msg.id] === 'disliked'
-                            : msg.isUseless
-                        ) ? { color: '#ef4444' } : {}}
                         title="Không hữu ích"
                       >
                         <ThumbsDown size={16} />
