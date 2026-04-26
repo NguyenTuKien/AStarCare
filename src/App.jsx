@@ -79,15 +79,24 @@ function App() {
     try {
       await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' })
       const remaining = sessions.filter(s => s.id !== sessionId)
-      setSessions(remaining)
       if (activeSessionId === sessionId) {
         if (remaining.length > 0) {
+          setSessions(remaining)
           setActiveSessionId(remaining[0].id)
         } else {
-          setActiveSessionId(null)
-          setActiveSession(null)
-          handleNewConsultation()
+          // Tạo session mới trực tiếp để tránh stale closure của handleNewConsultation
+          const res = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: 'Cuộc trò chuyện mới' })
+          })
+          const newSession = await res.json()
+          setSessions([newSession])
+          setActiveSessionId(newSession.id)
+          setActiveSession(newSession)
         }
+      } else {
+        setSessions(remaining)
       }
     } catch (err) {
       console.error("Error deleting session:", err)
