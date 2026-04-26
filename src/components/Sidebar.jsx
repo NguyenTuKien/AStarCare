@@ -11,6 +11,19 @@ function Sidebar({ isDarkMode, setIsDarkMode, onOpenHelp, isOpen, onToggleSideba
         </button>
       </div>
 
+      {!isOpen && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+          <button 
+            className="icon-btn" 
+            style={{ backgroundColor: 'var(--primary-color)', color: 'white' }} 
+            onClick={onNewConsultation} 
+            title="Cuộc trò chuyện mới"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
+      )}
+
       {isOpen && (
         <>
           <button className="new-chat-btn" onClick={onNewConsultation}>
