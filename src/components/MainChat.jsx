@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { Plus, Mic, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Copy, Circle, Hourglass, Lightbulb, Camera } from 'lucide-react'
 import { transcribeAudio } from '../services/llmService'
+import CameraModal from './CameraModal'
 
 function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
   const [showPlusMenu, setShowPlusMenu] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [showCamera, setShowCamera] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
@@ -283,24 +285,19 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
               setShowPlusMenu(false);
             }} 
           />
-          <input 
-            type="file" 
-            ref={cameraInputRef} 
-            style={{ display: 'none' }} 
-            accept="image/*"
-            capture="environment"
-            onChange={(e) => {
-              if(e.target.files.length > 0) {
-                const newFiles = Array.from(e.target.files)
-                if (selectedImages.length + newFiles.length > 4) {
+          {showCamera && (
+            <CameraModal 
+              onClose={() => setShowCamera(false)} 
+              onCapture={(file) => {
+                if (selectedImages.length >= 4) {
                   alert("Chỉ được tải lên tối đa 4 ảnh cho mỗi tin nhắn.");
-                  return;
+                } else {
+                  setSelectedImages(prev => [...prev, file]);
                 }
-                setSelectedImages(prev => [...prev, ...newFiles]);
-              }
-              setShowPlusMenu(false);
-            }} 
-          />
+                setShowCamera(false);
+              }} 
+            />
+          )}
           {selectedImages.length > 0 && (
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', padding: '0 16px' }}>
               {selectedImages.map((file, idx) => (
@@ -322,7 +319,10 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
                 <ImageIcon size={18} />
                 <span>Tải ảnh lên...</span>
               </div>
-              <div className="menu-item" onClick={() => cameraInputRef.current.click()}>
+              <div className="menu-item" onClick={() => {
+                setShowCamera(true);
+                setShowPlusMenu(false);
+              }}>
                 <Camera size={18} />
                 <span>Chụp ảnh...</span>
               </div>
