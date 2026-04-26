@@ -14,6 +14,7 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
   const audioChunksRef = useRef([])
   const toastTimerRef = useRef(null)
   const [selectedImages, setSelectedImages] = useState([])
+  const [feedbackState, setFeedbackState] = useState({}) // { [msgIdx]: 'liked' | 'disliked' }
 
   const menuRef = useRef(null)
   const profileMenuRef = useRef(null)
@@ -24,6 +25,11 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeSession?.messages])
+
+  // Clear feedback when session changes
+  useEffect(() => {
+    setFeedbackState({})
+  }, [activeSession?.id])
 
   const showToast = (msg) => {
     setToastMsg(msg)
@@ -209,9 +215,42 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
                   </div>
                   {msg.sender === 'bot' && !msg._loading && (
                     <div className="message-actions">
-                      <button className="action-btn"><ThumbsUp size={16} /></button>
-                      <button className="action-btn"><ThumbsDown size={16} /></button>
-                      <button className="action-btn"><Copy size={16} /></button>
+                      <button 
+                        className="action-btn"
+                        onClick={() => {
+                          setFeedbackState(prev => ({
+                            ...prev,
+                            [idx]: prev[idx] === 'liked' ? null : 'liked'
+                          }))
+                        }}
+                        style={feedbackState[idx] === 'liked' ? { color: 'var(--primary-color)' } : {}}
+                        title="Hữu ích"
+                      >
+                        <ThumbsUp size={16} />
+                      </button>
+                      <button 
+                        className="action-btn"
+                        onClick={() => {
+                          setFeedbackState(prev => ({
+                            ...prev,
+                            [idx]: prev[idx] === 'disliked' ? null : 'disliked'
+                          }))
+                        }}
+                        style={feedbackState[idx] === 'disliked' ? { color: '#ef4444' } : {}}
+                        title="Không hữu ích"
+                      >
+                        <ThumbsDown size={16} />
+                      </button>
+                      <button 
+                        className="action-btn"
+                        onClick={() => {
+                          navigator.clipboard.writeText(msg.text)
+                          showToast('Đã copy tin nhắn!')
+                        }}
+                        title="Copy"
+                      >
+                        <Copy size={16} />
+                      </button>
                     </div>
                   )}
                 </div>
