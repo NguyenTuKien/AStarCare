@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Mic, MicOff, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Copy, Loader2 } from 'lucide-react'
+import { Plus, Mic, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Copy, Circle, Hourglass, Lightbulb } from 'lucide-react'
 import { transcribeAudio } from '../services/llmService'
 
 function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
@@ -186,7 +186,7 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
                   'Hãy gợi ý các câu hỏi nên hỏi bác sĩ trong buổi tái khám sắp tới.',
                 ].map((prompt, i) => (
                   <button key={i} className="suggestion-card" onClick={() => onSendMessage(prompt)}>
-                    <img src="/logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }} />
+                    <Lightbulb size={18} className="suggestion-icon" />
                     <span>{prompt}</span>
                   </button>
                 ))}
@@ -331,19 +331,14 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
                 }
               }}
             />
-            <button className="icon-btn" onClick={toggleListening}
+            <button className={`icon-btn ${isListening ? 'recording' : ''}`} onClick={toggleListening}
               disabled={isTranscribing}
               title={isListening ? 'Dừng ghi âm' : isTranscribing ? 'Đang xử lý...' : 'Ghi âm giọng nói'}
-              style={isListening
-                ? { backgroundColor: '#fee2e2', color: '#ef4444', borderRadius: '50%' }
-                : isTranscribing
-                ? { opacity: 0.6, cursor: 'not-allowed' }
-                : {}}
             >
               {isTranscribing
-                ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                ? <Hourglass size={20} className="spin-hourglass" />
                 : isListening
-                ? <MicOff size={20} />
+                ? <Circle size={20} fill="currentColor" className="record-icon" />
                 : <Mic size={20} />}
             </button>
             <button 
