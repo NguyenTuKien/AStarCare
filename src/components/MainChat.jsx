@@ -3,7 +3,7 @@ import { Plus, Mic, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Co
 import { transcribeAudio } from '../services/llmService'
 import CameraModal from './CameraModal'
 
-function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
+function MainChat({ onOpenSettings, activeSession, onSendMessage, user, token, onLogout }) {
   const [showPlusMenu, setShowPlusMenu] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
@@ -73,7 +73,7 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
         const blob = new Blob(audioChunksRef.current, { type: geminiMimeType })
         setIsTranscribing(true)
         try {
-          const text = await transcribeAudio(blob, geminiMimeType)
+          const text = await transcribeAudio(blob, token)
           if (text) {
             setInputValue(prev => (prev ? prev + ' ' : '') + text)
             showToast('Đã điền transcript vào ô chat. Bạn có thể sửa lại rồi bấm Gửi.')
@@ -141,19 +141,30 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
         )}
         <div className="user-profile" style={{ position: 'relative' }} ref={profileMenuRef}>
           <div className="user-info">
-            <span className="user-name">Khách</span>
-            <span className="user-role">Khách</span>
+            <span className="user-name">{user?.username || 'Khách'}</span>
+            <span className="user-role">Người dùng</span>
           </div>
-          <div className="avatar" onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ cursor: 'pointer' }}>K</div>
+          <div className="avatar" onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ cursor: 'pointer' }}>
+            {(user?.username || 'K').charAt(0).toUpperCase()}
+          </div>
           
           {showProfileMenu && (
             <div className="profile-popover">
               <div className="profile-popover-header">
-                <div><strong>Xin chào Khách</strong></div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Khách</div>
+                <div><strong>Xin chào {user?.username || 'Khách'}</strong></div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Người dùng A* Care</div>
               </div>
               <div className="profile-popover-body">
-                Đăng nhập ở hệ thống A* Care để đồng bộ phiên và vai trò.
+                Hồ sơ sức khỏe của bạn đã được mã hóa an toàn.
+                <button 
+                  onClick={onLogout}
+                  style={{
+                    display: 'block', width: '100%', marginTop: '12px', padding: '8px', 
+                    backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', 
+                    borderRadius: '6px', cursor: 'pointer', fontWeight: 500
+                  }}>
+                  Đăng xuất
+                </button>
               </div>
             </div>
           )}

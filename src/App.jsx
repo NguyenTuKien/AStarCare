@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import MainChat from './components/MainChat'
 import HelpModal from './components/HelpModal'
 import VoiceSettingsModal from './components/VoiceSettingsModal'
+import AuthScreen from './components/AuthScreen'
 import { generateBotResponse } from './services/llmService'
 
 function App() {
@@ -18,10 +19,39 @@ function App() {
   const [activeSessionId, setActiveSessionId] = useState(null)
   const [activeSession, setActiveSession] = useState(null)
 
+  // Auth state
+  const [token, setToken] = useState(localStorage.getItem('token') || null)
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  })
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    setToken(null)
+    setUser(null)
+    setSessions([])
+    setActiveSessionId(null)
+    setActiveSession(null)
+  }
+
+  const apiFetch = async (url, options = {}) => {
+    const headers = { ...options.headers }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch(url, { ...options, headers })
+    if (res.status === 401) {
+      handleLogout()
+      throw new Error("Phiên đăng nhập hết hạn")
+    }
+    return res
+  }
+
   useEffect(() => {
+    if (!token) return;
     setIsConnecting(true)
     setApiError(null)
-    fetch('/api/sessions')
+    apiFetch('/api/sessions')
       .then(res => {
         if (!res.ok) throw new Error(`Server lỗi ${res.status} - vui lòng thử lại sau`)
         return res.json()
@@ -43,8 +73,8 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (activeSessionId) {
-      fetch(`/api/sessions/${activeSessionId}`)
+    if (activeSessionId && token) {
+      apiFetch(`/api/sessions/${activeSessionId}`)
         .then(res => res.json())
         .then(data => setActiveSession(data))
         .catch(err => console.error("Error fetching session:", err))
@@ -61,7 +91,7 @@ function App() {
 
   const handleNewConsultation = async () => {
     try {
-      const res = await fetch('/api/sessions', {
+      const res = await apiFetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Cuộc trò chuyện mới' })
@@ -77,7 +107,7 @@ function App() {
 
   const handleDeleteSession = async (sessionId) => {
     try {
-      await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' })
+      await apiFetch(`/api/sessions/${sessionId}`, { method: 'DELETE' })
       const remaining = sessions.filter(s => s.id !== sessionId)
       if (activeSessionId === sessionId) {
         if (remaining.length > 0) {
@@ -85,7 +115,7 @@ function App() {
           setActiveSessionId(remaining[0].id)
         } else {
           // Tạo session mới trực tiếp để tránh stale closure của handleNewConsultation
-          const res = await fetch('/api/sessions', {
+          const res = await apiFetch('/api/sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: 'Cuộc trò chuyện mới' })
@@ -120,7 +150,7 @@ function App() {
       if (images.length > 0) {
         const formData = new FormData();
         images.forEach(img => formData.append('files', img));
-        const uploadRes = await fetch(`/api/sessions/${activeSessionId}/upload_images`, {
+        const uploadRes = await apiFetch(`/api/sessions/${activeSessionId}/upload_images`, {
           method: 'POST',
           body: formData,
         });
@@ -130,7 +160,7 @@ function App() {
       }
 
       // 3. Save user message to backend
-      await fetch(`/api/sessions/${activeSessionId}/messages`, {
+      await apiFetch(`/api/sessions/${activeSessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, sender: 'user', image_urls: finalImageUrls })
@@ -145,14 +175,14 @@ function App() {
       }
 
       // 5. Save bot message to backend
-      await fetch(`/api/sessions/${activeSessionId}/messages`, {
+      await apiFetch(`/api/sessions/${activeSessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: botText, sender: 'bot', image_urls: [] })
       })
 
       // 6. Fetch session to get canonical state (with proper IDs + title)
-      const sessionRes = await fetch(`/api/sessions/${activeSessionId}`)
+      const sessionRes = await apiFetch(`/api/sessions/${activeSessionId}`)
       const updatedSession = await sessionRes.json()
       setActiveSession(updatedSession)
       setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, title: updatedSession.title } : s))
@@ -167,6 +197,15 @@ function App() {
         ).concat([{ sender: 'bot', text: 'Gửi tin nhắn thất bại. Vui lòng thử lại.', is_error: true, image_urls: [] }])
       }))
     }
+  }
+
+  if (!token) {
+    return <AuthScreen onAuthSuccess={(data) => {
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user', JSON.stringify({ id: data.user_id, username: data.username }));
+      setToken(data.access_token);
+      setUser({ id: data.user_id, username: data.username });
+    }} />
   }
 
   return (
@@ -197,7 +236,7 @@ function App() {
             onClick={() => {
               setApiError(null)
               setIsConnecting(true)
-              fetch('/api/sessions')
+              apiFetch('/api/sessions')
                 .then(res => { if (!res.ok) throw new Error(`Server lỗi ${res.status}`); return res.json() })
                 .then(data => {
                   setIsConnecting(false)
@@ -233,12 +272,17 @@ function App() {
         onSelectSession={setActiveSessionId}
         onNewConsultation={handleNewConsultation}
         onDeleteSession={handleDeleteSession}
+        user={user}
+        onLogout={handleLogout}
       />
       <MainChat 
         onOpenSettings={() => setShowSettings(true)} 
         onToggleSidebar={toggleSidebar}
         activeSession={activeSession}
         onSendMessage={handleSendMessage}
+        user={user}
+        token={token}
+        onLogout={handleLogout}
       />
       
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
