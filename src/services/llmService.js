@@ -10,8 +10,25 @@ export const generateBotResponse = async (userText, imageUrls = []) => {
 /**
  * Transcribes an audio Blob.
  */
-export const transcribeAudio = async (audioBlob, mimeType) => {
-    // Tạm thời loại bỏ nhận diện bằng Gemini
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    throw new Error("Chức năng nhận diện giọng nói đang được cập nhật, chưa có dịch vụ xử lý STT.");
+export const transcribeAudio = async (audioBlob) => {
+    try {
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "record.webm");
+
+        const response = await fetch("/api/transcribe", {
+            method: "POST",
+            body: formData,
+            // KHÔNG set header Content-Type để trình duyệt tự động tính toán boundary
+        });
+
+        if (!response.ok) {
+            throw new Error(`API Error ${response.status}: ${await response.text()}`);
+        }
+
+        const data = await response.json();
+        return data.text;
+    } catch (err) {
+        console.error("Lỗi khi transcribe audio:", err);
+        throw err;
+    }
 }
