@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Mic, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Copy, Circle, Hourglass, Lightbulb, Camera } from 'lucide-react'
+import { Plus, Mic, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Copy, Circle, Hourglass, Lightbulb, Camera, Menu } from 'lucide-react'
 import { transcribeAudio } from '../services/llmService'
 import CameraModal from './CameraModal'
 
-function MainChat({ onOpenSettings, activeSession, onSendMessage, user, onLogout }) {
+function MainChat({ onOpenSettings, activeSession, onSendMessage, user, onLogout, onToggleSidebar }) {
   const [showPlusMenu, setShowPlusMenu] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
@@ -160,9 +160,14 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage, user, onLogout
   return (
     <div className="main-content">
       <div className="header" style={{ position: 'relative' }}>
-        <div className="brand">A* Care</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="mobile-menu-btn icon-btn" onClick={onToggleSidebar} title="Mở menu" aria-label="Mở sidebar">
+            <Menu size={20} />
+          </button>
+          <img src="/name.png" alt="A* Care" style={{ height: '48px', objectFit: 'contain' }} />
+        </div>
         {activeSession?.title && (
-          <div style={{
+          <div className="session-title-header" style={{
             position: 'absolute', left: '50%', transform: 'translateX(-50%)',
             fontWeight: 600, fontSize: '1rem',
             color: 'var(--text-primary)',
@@ -263,22 +268,30 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage, user, onLogout
                   </div>
                   {msg.sender === 'bot' && !msg._loading && (
                     <div className="message-actions">
-                      <button 
-                        className={`action-btn${(feedbackState[msg.id] !== undefined ? feedbackState[msg.id] === 'liked' : msg.isHelpful) ? ' liked' : ''}`}
-                        onClick={() => handleFeedback(msg, 'liked')}
-                        disabled={!!feedbackLoading[msg.id]}
-                        title="Hữu ích"
-                      >
-                        <ThumbsUp size={16} />
-                      </button>
-                      <button 
-                        className={`action-btn${(feedbackState[msg.id] !== undefined ? feedbackState[msg.id] === 'disliked' : msg.isUseless) ? ' disliked' : ''}`}
-                        onClick={() => handleFeedback(msg, 'disliked')}
-                        disabled={!!feedbackLoading[msg.id]}
-                        title="Không hữu ích"
-                      >
-                        <ThumbsDown size={16} />
-                      </button>
+                      {(() => {
+                        const isLiked = feedbackState[msg.id] !== undefined ? feedbackState[msg.id] === 'liked' : msg.isHelpful
+                        const isDisliked = feedbackState[msg.id] !== undefined ? feedbackState[msg.id] === 'disliked' : msg.isUseless
+                        return (
+                          <>
+                            <button 
+                              className={`action-btn${isLiked ? ' liked' : ''}`}
+                              onClick={() => handleFeedback(msg, 'liked')}
+                              disabled={!!feedbackLoading[msg.id]}
+                              title="Hữu ích"
+                            >
+                              <ThumbsUp size={16} fill={isLiked ? 'currentColor' : 'none'} />
+                            </button>
+                            <button 
+                              className={`action-btn${isDisliked ? ' disliked' : ''}`}
+                              onClick={() => handleFeedback(msg, 'disliked')}
+                              disabled={!!feedbackLoading[msg.id]}
+                              title="Không hữu ích"
+                            >
+                              <ThumbsDown size={16} fill={isDisliked ? 'currentColor' : 'none'} />
+                            </button>
+                          </>
+                        )
+                      })()}
                       <button 
                         className="action-btn"
                         onClick={() => {
