@@ -9,8 +9,10 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
   const [isListening, setIsListening] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [toastMsg, setToastMsg] = useState('')
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
+  const toastTimerRef = useRef(null)
   const [selectedImages, setSelectedImages] = useState([])
 
   const menuRef = useRef(null)
@@ -23,12 +25,17 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeSession?.messages])
 
+  const showToast = (msg) => {
+    setToastMsg(msg)
+    clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setToastMsg(''), 3000)
+  }
+
   // MediaRecorder-based mic (works on Brave — does NOT use Web Speech API)
   const toggleListening = async () => {
     if (isTranscribing) return
 
     if (isListening) {
-      // Stop recording → onstop will handle transcription
       mediaRecorderRef.current?.stop()
       setIsListening(false)
       return
@@ -38,8 +45,12 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       audioChunksRef.current = []
 
-      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg', 'audio/mp4']
+      // Pick a format; prefer ogg (natively supported by Gemini inline_data)
+      const mimeType = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
         .find(t => MediaRecorder.isTypeSupported(t)) || ''
+
+      // Strip codec suffix: Gemini requires bare mime type (e.g. 'audio/webm', NOT 'audio/webm;codecs=opus')
+      const geminiMimeType = mimeType.split(';')[0] || 'audio/webm'
 
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {})
       mediaRecorderRef.current = recorder
@@ -50,13 +61,17 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
 
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop())
-        const blob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' })
+        const blob = new Blob(audioChunksRef.current, { type: geminiMimeType })
         setIsTranscribing(true)
         try {
-          const text = await transcribeAudio(blob)
-          setInputValue(prev => (prev ? prev + ' ' : '') + text)
+          const text = await transcribeAudio(blob, geminiMimeType)
+          if (text) {
+            setInputValue(prev => (prev ? prev + ' ' : '') + text)
+            showToast('Đã điền transcript vào ô chat. Bạn có thể sửa lại rồi bấm Gửi.')
+          }
         } catch (err) {
           console.error('Transcription failed:', err)
+          showToast('❌ Không thể chuyển âm thanh thành văn bản. Vui lòng thử lại.')
         } finally {
           setIsTranscribing(false)
         }
@@ -101,8 +116,20 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
 
   return (
     <div className="main-content">
-      <div className="header">
+      <div className="header" style={{ position: 'relative' }}>
         <div className="brand">A* Care</div>
+        {activeSession?.title && (
+          <div style={{
+            position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+            fontWeight: 600, fontSize: '1rem',
+            color: 'var(--text-primary)',
+            maxWidth: '40%', overflow: 'hidden',
+            whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+            pointerEvents: 'none'
+          }}>
+            {activeSession.title}
+          </div>
+        )}
         <div className="user-profile" style={{ position: 'relative' }} ref={profileMenuRef}>
           <div className="user-info">
             <span className="user-name">Khách</span>
@@ -124,16 +151,47 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
         </div>
       </div>
 
+      {/* Toast notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(30,30,30,0.92)', color: '#fff',
+          padding: '10px 20px', borderRadius: 24,
+          fontSize: '0.85rem', zIndex: 9999,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          {toastMsg}
+        </div>
+      )}
+
       <div className="chat-area">
         <div className="chat-container">
           {(!activeSession || activeSession.messages?.length === 0) ? (
-            <div className="welcome-title">Hãy hỏi A* Care bất kỳ điều gì...</div>
+            <div className="welcome-screen">
+              <img src="/logo.png" alt="A* Care" className="welcome-logo" />
+              <h1 className="welcome-heading">Clinic AI sẵn sàng hỗ trợ bạn.</h1>
+              <p className="welcome-sub">Hỏi về tài liệu, xét nghiệm, thuốc, triệu chứng hoặc đính kèm ảnh<br/>dể phân tích nhanh trong cùng một khung chat.</p>
+              <div className="suggestions-grid">
+                {[
+                  'Tóm tắt giúp tôi các điểm quan trọng của kết quả xét nghiệm máu gần đây.',
+                  'Nếu đau họng kèm sốt nhẹ trong 2 ngày thì nên theo dõi những dấu hiệu nào?',
+                  'So sánh giúp tôi công dụng và lưu ý của hai loại thuốc tôi đang dùng.',
+                  'Hãy gợi ý các câu hỏi nên hỏi bác sĩ trong buổi tái khám sắp tới.',
+                ].map((prompt, i) => (
+                  <button key={i} className="suggestion-card" onClick={() => onSendMessage(prompt)}>
+                    <img src="/logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }} />
+                    <span>{prompt}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : (
             activeSession.messages.map((msg, idx) => (
               <div key={idx} className={`message ${msg.sender}`}>
                 {msg.sender === 'bot' && (
                   <div className="bot-avatar">
-                    <div className="bot-logo-icon">A*</div>
+                    <img src="/logo.png" alt="A* Care" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }} />
                   </div>
                 )}
                 <div>

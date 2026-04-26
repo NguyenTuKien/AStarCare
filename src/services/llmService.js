@@ -41,7 +41,7 @@ export const generateBotResponse = async (userText, imageUrls = []) => {
  * @param {Blob} audioBlob - The recorded audio blob from MediaRecorder.
  * @returns {Promise<string>} The transcribed text.
  */
-export const transcribeAudio = async (audioBlob) => {
+export const transcribeAudio = async (audioBlob, mimeType) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     // Convert blob to base64
@@ -52,13 +52,14 @@ export const transcribeAudio = async (audioBlob) => {
         reader.readAsDataURL(audioBlob);
     });
 
-    const mimeType = audioBlob.type || 'audio/webm';
+    // Use provided mimeType (already stripped of codec suffix), fallback to blob type
+    const finalMimeType = mimeType || audioBlob.type.split(';')[0] || 'audio/webm';
 
     const payload = {
         contents: [{
             parts: [
                 { text: "Hãy chuyển đoạn audio sau thành văn bản. Chỉ trả về văn bản đã nhận diện, không giải thích thêm." },
-                { inline_data: { mime_type: mimeType, data: base64Audio } }
+                { inline_data: { mime_type: finalMimeType, data: base64Audio } }
             ]
         }]
     };
