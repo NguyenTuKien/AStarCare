@@ -16,7 +16,8 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage, user, onLogout
   const audioChunksRef = useRef([])
   const toastTimerRef = useRef(null)
   const [selectedImages, setSelectedImages] = useState([])
-  const [feedbackState, setFeedbackState] = useState({}) // { [msgIdx]: 'liked' | 'disliked' }
+  const [feedbackState, setFeedbackState] = useState({}) // { [msgId]: 'liked' | 'disliked' | null } – optimistic UI
+  const [feedbackLoading, setFeedbackLoading] = useState({}) // { [msgId]: true } – prevent double-click
 
   const menuRef = useRef(null)
   const profileMenuRef = useRef(null)
@@ -32,7 +33,40 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage, user, onLogout
   // Clear feedback when session changes
   useEffect(() => {
     setFeedbackState({})
+    setFeedbackLoading({})
   }, [activeSession?.id])
+
+  // Persist feedback to backend
+  const handleFeedback = async (msg, type) => {
+    if (!msg.id || feedbackLoading[msg.id]) return
+
+    // Determine new state (toggle off if same, switch otherwise)
+    const current = feedbackState[msg.id] !== undefined
+      ? feedbackState[msg.id]
+      : msg.isHelpful ? 'liked' : msg.isUseless ? 'disliked' : null
+    const next = current === type ? null : type
+
+    const isHelpful = next === 'liked'
+    const isUseless = next === 'disliked'
+
+    // Optimistic update
+    setFeedbackState(prev => ({ ...prev, [msg.id]: next }))
+    setFeedbackLoading(prev => ({ ...prev, [msg.id]: true }))
+
+    try {
+      await fetch(`/api/sessions/${activeSession.id}/messages/${msg.id}/feedback`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isHelpful, isUseless })
+      })
+    } catch (err) {
+      console.error('Feedback error:', err)
+      // Rollback optimistic update on error
+      setFeedbackState(prev => ({ ...prev, [msg.id]: current }))
+    } finally {
+      setFeedbackLoading(prev => ({ ...prev, [msg.id]: false }))
+    }
+  }
 
   const showToast = (msg) => {
     setToastMsg(msg)
@@ -231,26 +265,26 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage, user, onLogout
                     <div className="message-actions">
                       <button 
                         className="action-btn"
-                        onClick={() => {
-                          setFeedbackState(prev => ({
-                            ...prev,
-                            [idx]: prev[idx] === 'liked' ? null : 'liked'
-                          }))
-                        }}
-                        style={feedbackState[idx] === 'liked' ? { color: 'var(--primary-color)' } : {}}
+                        onClick={() => handleFeedback(msg, 'liked')}
+                        disabled={!!feedbackLoading[msg.id]}
+                        style={(
+                          feedbackState[msg.id] !== undefined
+                            ? feedbackState[msg.id] === 'liked'
+                            : msg.isHelpful
+                        ) ? { color: 'var(--primary-color)' } : {}}
                         title="Hữu ích"
                       >
                         <ThumbsUp size={16} />
                       </button>
                       <button 
                         className="action-btn"
-                        onClick={() => {
-                          setFeedbackState(prev => ({
-                            ...prev,
-                            [idx]: prev[idx] === 'disliked' ? null : 'disliked'
-                          }))
-                        }}
-                        style={feedbackState[idx] === 'disliked' ? { color: '#ef4444' } : {}}
+                        onClick={() => handleFeedback(msg, 'disliked')}
+                        disabled={!!feedbackLoading[msg.id]}
+                        style={(
+                          feedbackState[msg.id] !== undefined
+                            ? feedbackState[msg.id] === 'disliked'
+                            : msg.isUseless
+                        ) ? { color: '#ef4444' } : {}}
                         title="Không hữu ích"
                       >
                         <ThumbsDown size={16} />
