@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Mic, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Copy, Circle, Hourglass, Lightbulb } from 'lucide-react'
+import { Plus, Mic, Send, Image as ImageIcon, Settings, ThumbsUp, ThumbsDown, Copy, Circle, Hourglass, Lightbulb, Camera } from 'lucide-react'
 import { transcribeAudio } from '../services/llmService'
 
 function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
@@ -19,6 +19,7 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
   const menuRef = useRef(null)
   const profileMenuRef = useRef(null)
   const fileInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
   const chatEndRef = useRef(null)
 
   // Auto-scroll to bottom on new messages
@@ -282,6 +283,24 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
               setShowPlusMenu(false);
             }} 
           />
+          <input 
+            type="file" 
+            ref={cameraInputRef} 
+            style={{ display: 'none' }} 
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => {
+              if(e.target.files.length > 0) {
+                const newFiles = Array.from(e.target.files)
+                if (selectedImages.length + newFiles.length > 4) {
+                  alert("Chỉ được tải lên tối đa 4 ảnh cho mỗi tin nhắn.");
+                  return;
+                }
+                setSelectedImages(prev => [...prev, ...newFiles]);
+              }
+              setShowPlusMenu(false);
+            }} 
+          />
           {selectedImages.length > 0 && (
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', padding: '0 16px' }}>
               {selectedImages.map((file, idx) => (
@@ -302,6 +321,10 @@ function MainChat({ onOpenSettings, activeSession, onSendMessage }) {
               <div className="menu-item" onClick={() => fileInputRef.current.click()}>
                 <ImageIcon size={18} />
                 <span>Tải ảnh lên...</span>
+              </div>
+              <div className="menu-item" onClick={() => cameraInputRef.current.click()}>
+                <Camera size={18} />
+                <span>Chụp ảnh...</span>
               </div>
               <div className="menu-item" onClick={() => {
                 setShowPlusMenu(false)
