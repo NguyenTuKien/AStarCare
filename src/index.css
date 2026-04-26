@@ -1,3 +1,7 @@
+html {
+  font-size: 112.5%; /* Tương đương 18px base thay vì 16px, giúp phóng to mọi text dùng rem */
+}
+
 :root {
   --bg-main: #ffffff;
   --bg-sidebar: #f8f9fa;
@@ -412,8 +416,8 @@ input:checked + .slider:before {
 }
 
 .bot-avatar {
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
   background: var(--bg-bot-avatar);
   border-radius: 50%;
   display: flex;
@@ -421,7 +425,7 @@ input:checked + .slider:before {
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
-  border: 1px solid var(--border-color);
+  border: none;
 }
 
 .bot-avatar img {
