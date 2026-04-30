@@ -31,11 +31,6 @@ function AuthScreen({ onAuthSuccess }) {
       
       let res;
       if (isLogin) {
-        // OAuth2 Password Request uses form-data or JSON? FastAPI OAuth2PasswordRequestForm expects form-data.
-        // Wait, in my backend app.py I used `user: schemas.UserLogin`, which expects JSON! Let's check `auth.py`. 
-        // Ah, `OAuth2PasswordBearer` requires the login endpoint to accept `application/x-www-form-urlencoded`!
-        // Wait, if I used `schemas.UserLogin` as a JSON body, `OAuth2PasswordBearer` might not be fully compliant but it doesn't strictly validate the login endpoint itself, it just validates the token format in the header.
-        // But let me send JSON since I defined the backend to accept JSON.
         res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -56,9 +51,8 @@ function AuthScreen({ onAuthSuccess }) {
 
       if (isLogin) {
         const data = await res.json();
-        onAuthSuccess(data); // pass token and user info
+        onAuthSuccess(data);
       } else {
-        // Switch to login after successful register
         setIsLogin(true);
         setError('');
         setPassword('');
@@ -74,9 +68,31 @@ function AuthScreen({ onAuthSuccess }) {
 
   return (
     <div className="auth-overlay">
+      <div className="auth-sparkles">
+        {[...Array(40)].map((_, i) => {
+          const size = Math.random() * 12 + 6;
+          return (
+            <div 
+              key={i} 
+              className="auth-sparkle" 
+              style={{
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+                width: `${size}px`,
+                height: `${size}px`,
+                '--duration': `${Math.random() * 3 + 2}s`,
+                '--delay': `${Math.random() * 5}s`
+              }}
+            />
+          );
+        })}
+      </div>
       <div className="auth-container">
+        <div className="auth-logo-container">
+          <img src="/name.png" alt="A* Care Logo" className="auth-logo-img" />
+          <div className="auth-login-subtitle">{isLogin ? 'Đăng nhập' : 'Đăng ký'}</div>
+        </div>
         <div className="auth-header">
-          <h2>{isLogin ? 'Đăng nhập A* Care' : 'Đăng ký tài khoản'}</h2>
           <p>{isLogin ? 'Nhập thông tin để tiếp tục' : 'Tạo tài khoản để cá nhân hóa dữ liệu của bạn'}</p>
         </div>
 
